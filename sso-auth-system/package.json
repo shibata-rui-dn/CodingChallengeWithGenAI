@@ -1,0 +1,53 @@
+{
+  "name": "sso-auth-system",
+  "version": "1.0.0",
+  "description": "Enterprise SSO Authentication System - Node.js ESM Implementation",
+  "type": "module",
+  "main": "auth-server/server.js",
+  "scripts": {
+    "setup": "node scripts/setup.js",
+    "start": "node scripts/start.js",
+    "start:auth": "node auth-server/server.js",
+    "migrate": "node scripts/migrate.js",
+    "seed": "node scripts/seed.js",
+    "test": "jest"
+  },
+  "keywords": [
+    "oauth2",
+    "openid-connect",
+    "sso",
+    "authentication",
+    "esm",
+    "enterprise"
+  ],
+  "author": "shibata.rui",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.10.0",
+    "bcrypt": "^5.1.0",
+    "better-sqlite3": "^12.1.1",
+    "connect-flash": "^0.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "ejs": "^3.1.9",
+    "express": "^4.18.2",
+    "express-rate-limit": "^6.7.0",
+    "express-session": "^1.17.3",
+    "helmet": "^6.1.5",
+    "inquirer": "^8.2.4",
+    "joi": "^17.9.2",
+    "jsonwebtoken": "^9.0.0",
+    "morgan": "^1.10.0",
+    "node-jose": "^2.2.0",
+    "uuid": "^9.0.0",
+    "winston": "^3.8.2",
+    "yaml": "^2.3.1"
+  },
+  "devDependencies": {
+    "jest": "^29.5.0",
+    "supertest": "^6.3.3"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

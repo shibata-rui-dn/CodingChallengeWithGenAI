@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo SSO Authentication - Error</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-box">
+            <div class="error-header">
+                <div class="app-logo">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2L22 7L12 12L2 7L12 2Z" fill="#d13438"/>
+                        <path d="M2 17L12 22L22 17" stroke="#d13438" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 12L12 17L22 12" stroke="#d13438" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <h1>Authentication Error</h1>
+            </div>
+            
+            <div class="error-details">
+                <div class="error-message">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" style="color: #d13438; margin-bottom: 16px;">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                    </svg>
+                    <p>The authentication request could not be processed.</p>
+                </div>
+                
+                <div class="error-suggestions">
+                    <h3>What you can try:</h3>
+                    <ul>
+                        <li>Verify you accessed this page from a valid application</li>
+                        <li>Contact the application provider for support</li>
+                        <li>Try accessing the application again from the beginning</li>
+                        <li>Clear your browser cookies and try again</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="error-actions">
+                <button type="button" id="goBackBtn" class="error-btn primary">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="margin-right: 8px;">
+                        <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+                    </svg>
+                    Return to Application
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const goBackBtn = document.getElementById('goBackBtn');
+            if (goBackBtn) {
+                goBackBtn.addEventListener('click', function() {
+                    if (window.history.length > 1) {
+                        window.history.back();
+                    } else {
+                        window.close();
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

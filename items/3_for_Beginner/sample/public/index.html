@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>組織可視化システム - KK Company</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- ヘッダー -->
+    <header class="header">
+        <div class="container">
+            <h1><i class="fas fa-sitemap"></i> 組織可視化システム</h1>
+            <div class="user-info" id="userInfo" style="display: none;">
+                <span id="userName"></span>
+                <button id="logoutBtn" class="btn btn-secondary">ログアウト</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="main">
+        <!-- ローディング -->
+        <div id="loading" class="loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>読み込み中...</p>
+        </div>
+
+        <!-- ログイン画面 -->
+        <div id="loginPage" class="login-page" style="display: none;">
+            <div class="login-card">
+                <i class="fas fa-sitemap fa-3x mb-4"></i>
+                <h2>組織可視化システム</h2>
+                <p>SSO認証でログインして、組織構造と従業員情報を確認できます</p>
+                <button id="loginBtn" class="btn btn-primary">
+                    <i class="fas fa-sign-in-alt"></i> SSO認証でログイン
+                </button>
+            </div>
+        </div>
+
+        <!-- ダッシュボード -->
+        <div id="dashboard" class="dashboard" style="display: none;">
+            <div class="container">
+                <div class="dashboard-grid">
+                    <!-- 組織ツリー -->
+                    <div class="panel">
+                        <h3><i class="fas fa-sitemap"></i> 組織構造</h3>
+                        <div id="orgTree" class="org-tree"></div>
+                    </div>
+
+                    <!-- 従業員リスト -->
+                    <div class="panel">
+                        <h3><i class="fas fa-users"></i> 従業員一覧</h3>
+                        <div class="dept-selector">
+                            <select id="deptSelect">
+                                <option value="">部署を選択してください</option>
+                            </select>
+                        </div>
+                        <div id="employeeList" class="employee-list"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 従業員詳細モーダル -->
+    <div id="employeeModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" id="modalClose">&times;</span>
+            <div id="employeeDetail"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

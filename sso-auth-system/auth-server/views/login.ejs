@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In - Enterprise SSO</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="app-logo">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2L22 7L12 12L2 7L12 2Z" fill="#0078d4" />
+                        <path d="M2 17L12 22L22 17" stroke="#0078d4" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        <path d="M2 12L12 17L22 12" stroke="#0078d4" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                    </svg>
+                </div>
+                <h1>SSO Sign In</h1>
+            </div>
+
+            <div class="message-area">
+                <% if (error && error.length> 0) { %>
+                    <div class="alert alert-error">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z" />
+                            <path
+                                d="M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM7.1 4.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 4.995z" />
+                        </svg>
+                        <%= error %>
+                    </div>
+                    <% } else if (message && message.length> 0) { %>
+                        <div class="alert alert-info">
+                            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z" />
+                                <path
+                                    d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z" />
+                            </svg>
+                            <%= message %>
+                        </div>
+                        <% } %>
+            </div>
+
+            <!-- ログインフォーム -->
+            <form method="POST" action="/auth/login" class="login-form">
+                <input type="hidden" name="client_id" value="<%= client_id %>">
+                <input type="hidden" name="redirect_uri" value="<%= redirect_uri %>">
+                <input type="hidden" name="scope" value="<%= scope %>">
+                <input type="hidden" name="state" value="<%= state %>">
+
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" required autocomplete="email" class="form-input">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required autocomplete="current-password"
+                        class="form-input">
+                </div>
+
+                <button type="submit" class="btn-primary">Sign In</button>
+            </form>
+
+            <div class="demo-section">
+                <div class="demo-title">Demo Accounts</div>
+                <div class="demo-accounts">
+                    <div class="demo-account" data-email="admin@company.com" data-password="<%= demo_admin_password %>">
+                        <span class="demo-label">Admin</span>
+                        <span class="demo-credentials">admin@company.com / <%= demo_admin_password %></span>
+                        <button type="button" class="demo-btn">Use</button>
+                    </div>
+                    <div class="demo-account" data-email="user0@company.com" data-password="<%= demo_user_password %>">
+                        <span class="demo-label">User</span>
+                        <span class="demo-credentials">user0@company.com / <%= demo_user_password %></span>
+                        <button type="button" class="demo-btn">Use</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/login.js"></script>
+</body>
+
+</html>

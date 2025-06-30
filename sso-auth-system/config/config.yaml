@@ -1,0 +1,57 @@
+# SSO Authentication System Configuration
+
+server:
+  auth_domain: "localhost"
+  auth_server_url: "http://localhost:3303"
+  auth_port: 3303
+  
+database:
+  name: "auth_db.sqlite"
+  path: "./database/"
+  
+jwt:
+  issuer: "http://localhost:3303"
+  audience: "http://localhost:3303"
+  algorithm: "RS256"
+  access_token_expiry: 3600
+  id_token_expiry: 3600
+  private_key_path: "./keys/private.pem"
+  public_key_path: "./keys/public.pem"
+  
+oauth:
+  code_expiry: 600
+  default_scopes: ["openid", "profile", "email"]
+  admin_scopes: ["openid", "profile", "email", "admin"]
+  organization_scopes: ["openid", "profile", "email", "organization"]
+  available_scopes: 
+    - "openid"
+    - "profile" 
+    - "email"
+    - "organization" 
+    - "admin"
+  scope_descriptions:
+    openid: "基本的なID情報"
+    profile: "プロフィール情報" 
+    email: "メールアドレス"
+    organization: "組織情報（部署・チーム・上司）"
+    admin: "管理者機能"
+  
+security:
+  bcrypt_rounds: 4
+  session_secret: "change-this-in-production"
+  rate_limit:
+    window_ms: 900000
+    max_requests: 200
+    
+logging:
+  level: "info"
+  file: "./logs/auth-server.log"
+  console: true
+  
+demo:
+  admin:
+    username: "admin"
+    password: "SecurePass123"
+  user:
+    username: "user0"
+    password: "UserPass123"

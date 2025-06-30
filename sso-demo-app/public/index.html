@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>バッジ管理システム - KK Company</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTYiIGZpbGw9IiMzQjgyRjYiLz4KPHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI0ZGRkZGRiIgeD0iNiIgeT0iNiI+CjxwYXRoIGQ9Ik0xMiAyTDEzLjA5IDguMjZMMjAgOUwxNCAxNUwxNi4xOCAyMkwxMiAxOUw3LjgyIDIyTDEwIDE1TDQgOUwxMC45MSA4LjI2TDEyIDJaIi8+Cjwvc3ZnPgo8L3N2Zz4K">
+    
+    <!-- CSS Libraries -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- React and Babel -->
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.22.5/babel.min.js"></script>
+    
+    <!-- Chart.js for analytics -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    
+    <!-- Axios for HTTP requests -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.4.0/axios.min.js"></script>
+</head>
+<body class="bg-gray-50 font-sans">
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 bg-blue-600 flex items-center justify-center z-50">
+        <div class="text-center text-white">
+            <div class="mb-4">
+                <i class="fas fa-medal text-6xl animate-pulse"></i>
+            </div>
+            <h1 class="text-2xl font-bold mb-2">バッジ管理システム</h1>
+            <p class="text-blue-200">KK Company</p>
+            <div class="mt-4">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Container -->
+    <div id="app" class="min-h-screen"></div>
+
+    <!-- React Application -->
+    <script type="text/babel">
+        const { useState, useEffect, useContext, createContext } = React;
+
+        // Authentication Context
+        const AuthContext = createContext();
+
+        // API Service
+        class ApiService {
+            static baseURL = '';
+
+            static async request(url, options = {}) {
+                const config = {
+                    ...options,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    credentials: 'include'
+                };
+
+                try {
+                    const response = await fetch(url, config);
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.message || `HTTP ${response.status}`);
+                    }
+
+                    return data;
+                } catch (error) {
+                    console.error('API Request Error:', error);
+                    throw error;
+                }
+            }
+
+            static async get(url) {
+                return this.request(url);
+            }
+
+            static async post(url, data) {
+                return this.request(url, {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+            }
+
+            // Auth API
+            static async getAuthStatus() {
+                return this.get('/auth/status');
+            }
+
+            static async logout() {
+                return this.post('/auth/logout');
+            }
+
+            // Badge API
+            static async getProfile() {
+                return this.get('/api/profile');
+            }
+
+            static async getUserBadges(params = {}) {
+                const query = new URLSearchParams(params).toString();
+                return this.get(`/api/badges${query ? '?' + query : ''}`);
+            }
+
+            static async getAvailableBadges(params = {}) {
+                const query = new URLSearchParams(params).toString();
+                return this.get(`/api/badges/available${query ? '?' + query : ''}`);
+            }
+
+            static async getCategories() {
+                return this.get('/api/categories');
+            }
+
+            static async getRankings(type = 'popular', limit = 20) {
+                return this.get(`/api/rankings?type=${type}&limit=${limit}`);
+            }
+
+            static async getDepartmentStats() {
+                return this.get('/api/stats/departments');
+            }
+        }
+
+        // Auth Provider Component
+        function AuthProvider({ children }) {
+            const [auth, setAuth] = useState({
+                loading: true,
+                authenticated: false,
+                user: null,
+                error: null
+            });
+
+            const checkAuth = async () => {
+                try {
+                    console.log('認証状態チェック開始...');
+                    setAuth(prev => ({ ...prev, loading: true, error: null }));
+                    
+                    const status = await ApiService.getAuthStatus();
+                    console.log('認証状態レスポンス:', status);
+                    
+                    setAuth({
+                        loading: false,
+                        authenticated: status.authenticated,
+                        user: status.user,
+                        error: null
+                    });
+                } catch (error) {
+                    console.error('Auth check failed:', error);
+                    setAuth({
+                        loading: false,
+                        authenticated: false,
+                        user: null,
+                        error: error.message
+                    });
+                }
+            };
+
+            const login = () => {
+                const currentUrl = window.location.pathname + window.location.search;
+                const returnUrl = currentUrl !== '/' ? currentUrl : '/';
+                window.location.href = `/oauth/login?returnUrl=${encodeURIComponent(returnUrl)}`;
+            };
+
+            const logout = async () => {
+                try {
+                    await ApiService.logout();
+                    setAuth({
+                        loading: false,
+                        authenticated: false,
+                        user: null,
+                        error: null
+                    });
+                    // ログアウト後はページをリロード
+                    window.location.href = '/';
+                } catch (error) {
+                    console.error('Logout failed:', error);
+                    // エラーが発生してもログアウト状態にする
+                    setAuth({
+                        loading: false,
+                        authenticated: false,
+                        user: null,
+                        error: error.message
+                    });
+                }
+            };
+
+            // URL パラメータからエラーをチェック
+            useEffect(() => {
+                const urlParams = new URLSearchParams(window.location.search);
+                const error = urlParams.get('error');
+                if (error) {
+                    console.error('URL error parameter:', error);
+                    setAuth(prev => ({ 
+                        ...prev, 
+                        error: decodeURIComponent(error),
+                        loading: false,
+                        authenticated: false 
+                    }));
+                    // エラーパラメータをURLから削除
+                    window.history.replaceState({}, '', window.location.pathname);
+                } else {
+                    checkAuth();
+                }
+            }, []);
+
+            // ページ可視性変更時の認証チェック
+            useEffect(() => {
+                const handleVisibilityChange = () => {
+                    if (!document.hidden && auth.authenticated) {
+                        checkAuth();
+                    }
+                };
+
+                document.addEventListener('visibilitychange', handleVisibilityChange);
+                return () => {
+                    document.removeEventListener('visibilitychange', handleVisibilityChange);
+                };
+            }, [auth.authenticated]);
+
+            return (
+                <AuthContext.Provider value={{ auth, login, logout, checkAuth }}>
+                    {children}
+                </AuthContext.Provider>
+            );
+        }
+
+        // Loading Component
+        function LoadingSpinner({ message = "読み込み中..." }) {
+            return (
+                <div className="flex items-center justify-center p-8">
+                    <div className="text-center">
+                        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+                        <p className="text-gray-600">{message}</p>
+                    </div>
+                </div>
+            );
+        }
+
+        // Error Component
+        function ErrorMessage({ error, onRetry }) {
+            return (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 m-4">
+                    <div className="flex items-center">
+                        <i className="fas fa-exclamation-triangle text-red-500 mr-3"></i>
+                        <div>
+                            <h3 className="text-red-800 font-semibold">エラーが発生しました</h3>
+                            <p className="text-red-600 text-sm mt-1">{error}</p>
+                        </div>
+                    </div>
+                    {onRetry && (
+                        <button 
+                            onClick={onRetry}
+                            className="mt-3 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors"
+                        >
+                            再試行
+                        </button>
+                    )}
+                </div>
+            );
+        }
+
+        // Badge Card Component
+        function BadgeCard({ badge, showProgress = false }) {
+            const difficultyColors = {
+                beginner: 'bg-green-100 text-green-800',
+                intermediate: 'bg-blue-100 text-blue-800',
+                advanced: 'bg-orange-100 text-orange-800',
+                expert: 'bg-red-100 text-red-800'
+            };
+
+            const difficultyIcons = {
+                beginner: 'fas fa-seedling',
+                intermediate: 'fas fa-star',
+                advanced: 'fas fa-fire',
+                expert: 'fas fa-crown'
+            };
+
+            return (
+                <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6 border border-gray-200">
+                    <div className="flex items-start justify-between mb-4">
+                        <div className="text-3xl">{badge.icon}</div>
+                        <div className="flex items-center space-x-2">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${difficultyColors[badge.difficulty]}`}>
+                                <i className={`${difficultyIcons[badge.difficulty]} mr-1`}></i>
+                                {badge.difficulty}
+                            </span>
+                            <span className="text-blue-600 font-semibold">{badge.points}pt</span>
+                        </div>
+                    </div>
+                    
+                    <h3 className="font-semibold text-lg mb-2 text-gray-900">{badge.name}</h3>
+                    <p className="text-gray-600 text-sm mb-3">{badge.description}</p>
+                    
+                    <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-500">
+                            <i className="fas fa-tag mr-1"></i>
+                            {badge.category_name}
+                        </span>
+                        {badge.earned_at && (
+                            <span className="text-green-600">
+                                <i className="fas fa-check-circle mr-1"></i>
+                                {new Date(badge.earned_at).toLocaleDateString('ja-JP')}
+                            </span>
+                        )}
+                        {showProgress && badge.probability !== undefined && (
+                            <span className="text-blue-600">
+                                <i className="fas fa-percentage mr-1"></i>
+                                {badge.probability}%
+                            </span>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        // User Profile Component
+        function UserProfile({ profile }) {
+            const levelColors = {
+                1: 'bg-gray-500',
+                2: 'bg-green-500',
+                3: 'bg-blue-500',
+                4: 'bg-purple-500',
+                5: 'bg-orange-500',
+                6: 'bg-red-500',
+                7: 'bg-yellow-500'
+            };
+
+            return (
+                <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center">
+                            <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center text-white text-2xl font-bold mr-4">
+                                {profile.name?.charAt(0) || 'U'}
+                            </div>
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-900">{profile.name}</h2>
+                                <p className="text-gray-600">{profile.email}</p>
+                                {profile.organization && (
+                                    <div className="text-sm text-gray-500 mt-1">
+                                        {profile.organization.department} - {profile.organization.team}
+                                        {profile.organization.position && ` (${profile.organization.position})`}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        
+                        <div className="text-right">
+                            <div className={`inline-flex items-center px-3 py-1 rounded-full text-white text-sm font-medium ${levelColors[profile.level?.level] || 'bg-gray-500'}`}>
+                                <i className="fas fa-medal mr-2"></i>
+                                Level {profile.level?.level} {profile.level?.title}
+                            </div>
+                            <div className="text-2xl font-bold text-blue-600 mt-2">
+                                {profile.badges?.totalPoints || 0} pt
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="text-center p-4 bg-blue-50 rounded-lg">
+                            <div className="text-2xl font-bold text-blue-600">{profile.badges?.totalBadges || 0}</div>
+                            <div className="text-sm text-gray-600">総バッジ数</div>
+                        </div>
+                        <div className="text-center p-4 bg-green-50 rounded-lg">
+                            <div className="text-2xl font-bold text-green-600">{profile.badges?.categoriesCount || 0}</div>
+                            <div className="text-sm text-gray-600">カテゴリ数</div>
+                        </div>
+                        <div className="text-center p-4 bg-orange-50 rounded-lg">
+                            <div className="text-2xl font-bold text-orange-600">{profile.badges?.recentBadges || 0}</div>
+                            <div className="text-sm text-gray-600">今月の取得</div>
+                        </div>
+                        <div className="text-center p-4 bg-purple-50 rounded-lg">
+                            <div className="text-2xl font-bold text-purple-600">{profile.badges?.completionRate || 0}%</div>
+                            <div className="text-sm text-gray-600">達成率</div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Dashboard Component
+        function Dashboard() {
+            const [profile, setProfile] = useState(null);
+            const [badges, setBadges] = useState([]);
+            const [availableBadges, setAvailableBadges] = useState([]);
+            const [rankings, setRankings] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+            const [activeTab, setActiveTab] = useState('overview');
+
+            const loadData = async () => {
+                try {
+                    setLoading(true);
+                    setError(null);
+
+                    const [profileRes, badgesRes, availableRes, rankingsRes] = await Promise.all([
+                        ApiService.getProfile(),
+                        ApiService.getUserBadges({ sort: 'recent' }),
+                        ApiService.getAvailableBadges(),
+                        ApiService.getRankings('popular', 10)
+                    ]);
+
+                    setProfile(profileRes);
+                    setBadges(badgesRes.badges || []);
+                    setAvailableBadges(availableRes.badges || []);
+                    setRankings(rankingsRes.rankings || []);
+                } catch (error) {
+                    console.error('Dashboard data load error:', error);
+                    setError(error.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            useEffect(() => {
+                loadData();
+            }, []);
+
+            if (loading) {
+                return <LoadingSpinner message="ダッシュボードを読み込み中..." />;
+            }
+
+            if (error) {
+                return <ErrorMessage error={error} onRetry={loadData} />;
+            }
+
+            return (
+                <div className="max-w-7xl mx-auto px-4 py-6">
+                    {profile && <UserProfile profile={profile} />}
+
+                    {/* Tab Navigation */}
+                    <div className="bg-white rounded-lg shadow-md mb-6">
+                        <div className="border-b border-gray-200">
+                            <nav className="flex space-x-8 px-6">
+                                {[
+                                    { key: 'overview', label: 'オーバービュー', icon: 'fas fa-chart-line' },
+                                    { key: 'badges', label: '取得済みバッジ', icon: 'fas fa-medal' },
+                                    { key: 'available', label: '取得可能バッジ', icon: 'fas fa-plus-circle' },
+                                    { key: 'rankings', label: 'ランキング', icon: 'fas fa-trophy' }
+                                ].map(tab => (
+                                    <button
+                                        key={tab.key}
+                                        onClick={() => setActiveTab(tab.key)}
+                                        className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                                            activeTab === tab.key
+                                                ? 'border-blue-500 text-blue-600'
+                                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                        }`}
+                                    >
+                                        <i className={`${tab.icon} mr-2`}></i>
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </nav>
+                        </div>
+
+                        <div className="p-6">
+                            {activeTab === 'overview' && (
+                                <div>
+                                    <h3 className="text-lg font-semibold mb-4">最近取得したバッジ</h3>
+                                    {badges.length > 0 ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            {badges.slice(0, 6).map(badge => (
+                                                <BadgeCard key={badge.id} badge={badge} />
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-8 text-gray-500">
+                                            <i className="fas fa-medal text-4xl mb-4"></i>
+                                            <p>まだバッジを取得していません</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {activeTab === 'badges' && (
+                                <div>
+                                    <h3 className="text-lg font-semibold mb-4">取得済みバッジ ({badges.length}個)</h3>
+                                    {badges.length > 0 ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            {badges.map(badge => (
+                                                <BadgeCard key={badge.id} badge={badge} />
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-8 text-gray-500">
+                                            <i className="fas fa-medal text-4xl mb-4"></i>
+                                            <p>まだバッジを取得していません</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {activeTab === 'available' && (
+                                <div>
+                                    <h3 className="text-lg font-semibold mb-4">取得可能バッジ ({availableBadges.filter(b => b.achievable).length}個)</h3>
+                                    {availableBadges.length > 0 ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            {availableBadges.filter(b => b.achievable).map(badge => (
+                                                <BadgeCard key={badge.id} badge={badge} showProgress={true} />
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-8 text-gray-500">
+                                            <i className="fas fa-plus-circle text-4xl mb-4"></i>
+                                            <p>現在取得可能なバッジはありません</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {activeTab === 'rankings' && (
+                                <div>
+                                    <h3 className="text-lg font-semibold mb-4">人気バッジランキング</h3>
+                                    {rankings.length > 0 ? (
+                                        <div className="space-y-4">
+                                            {rankings.map((badge, index) => (
+                                                <div key={index} className="flex items-center p-4 bg-gray-50 rounded-lg">
+                                                    <div className="text-2xl font-bold text-gray-500 w-8 mr-4">
+                                                        #{index + 1}
+                                                    </div>
+                                                    <div className="text-2xl mr-4">{badge.icon}</div>
+                                                    <div className="flex-1">
+                                                        <h4 className="font-semibold">{badge.name}</h4>
+                                                        <p className="text-sm text-gray-600">{badge.category_name}</p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <div className="text-lg font-bold text-blue-600">{badge.earned_count}</div>
+                                                        <div className="text-sm text-gray-500">取得者数</div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-8 text-gray-500">
+                                            <i className="fas fa-trophy text-4xl mb-4"></i>
+                                            <p>ランキングデータがありません</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Header Component
+        function Header() {
+            const { auth, logout } = useContext(AuthContext);
+
+            const handleLogout = async () => {
+                if (confirm('ログアウトしますか？')) {
+                    await logout();
+                }
+            };
+
+            return (
+                <header className="bg-white shadow-sm border-b border-gray-200">
+                    <div className="max-w-7xl mx-auto px-4">
+                        <div className="flex justify-between items-center h-16">
+                            <div className="flex items-center">
+                                <div className="flex-shrink-0">
+                                    <i className="fas fa-medal text-blue-600 text-2xl mr-3"></i>
+                                    <span className="text-xl font-bold text-gray-900">バッジ管理システム</span>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center space-x-4">
+                                {auth.authenticated && auth.user && (
+                                    <>
+                                        <div className="text-sm text-gray-700">
+                                            <span className="hidden md:inline">こんにちは、</span>
+                                            <span className="font-medium">{auth.user.name || auth.user.preferred_username}</span>
+                                        </div>
+                                        <button
+                                            onClick={handleLogout}
+                                            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                                        >
+                                            <i className="fas fa-sign-out-alt mr-2"></i>
+                                            ログアウト
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </header>
+            );
+        }
+
+        // Login Page Component
+        function LoginPage() {
+            const { auth, login } = useContext(AuthContext);
+            const [debugMode, setDebugMode] = useState(false);
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center px-4">
+                    <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full">
+                        <div className="text-center mb-8">
+                            <i className="fas fa-medal text-blue-600 text-5xl mb-4"></i>
+                            <h1 className="text-3xl font-bold text-gray-900 mb-2">バッジ管理システム</h1>
+                            <p className="text-gray-600">KK Company</p>
+                        </div>
+
+                        {/* エラー表示 */}
+                        {auth.error && (
+                            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+                                <div className="flex items-center">
+                                    <i className="fas fa-exclamation-triangle text-red-500 mr-3"></i>
+                                    <div>
+                                        <h4 className="text-red-800 font-semibold text-sm">認証エラー</h4>
+                                        <p className="text-red-600 text-sm mt-1">{auth.error}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="mb-6">
+                            <p className="text-gray-700 text-center mb-4">
+                                SSO認証システムでログインして、あなたの IT資格バッジを確認しましょう。
+                            </p>
+                        </div>
+
+                        <button
+                            onClick={login}
+                            disabled={auth.loading}
+                            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center"
+                        >
+                            {auth.loading ? (
+                                <>
+                                    <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                    認証中...
+                                </>
+                            ) : (
+                                <>
+                                    <i className="fas fa-sign-in-alt mr-2"></i>
+                                    SSO認証でログイン
+                                </>
+                            )}
+                        </button>
+
+                        <div className="mt-6 text-center text-sm text-gray-500">
+                            <p>初回ログイン時は、SSO認証システムに</p>
+                            <p>リダイレクトされます</p>
+                        </div>
+
+                        {/* デバッグ情報切り替えボタン */}
+                        <div className="mt-4 text-center">
+                            <button
+                                onClick={() => setDebugMode(!debugMode)}
+                                className="text-xs text-gray-400 hover:text-gray-600"
+                            >
+                                デバッグ情報 {debugMode ? '非表示' : '表示'}
+                            </button>
+                        </div>
+
+                        {/* デバッグ情報 */}
+                        {debugMode && (
+                            <div className="mt-4 bg-gray-50 border rounded-lg p-4 text-xs">
+                                <h5 className="font-semibold mb-2">デバッグ情報:</h5>
+                                <div className="space-y-1 text-gray-600">
+                                    <div>認証状態: {auth.authenticated ? '認証済み' : '未認証'}</div>
+                                    <div>読み込み中: {auth.loading ? 'はい' : 'いいえ'}</div>
+                                    <div>ユーザー: {auth.user?.name || '未設定'}</div>
+                                    <div>エラー: {auth.error || 'なし'}</div>
+                                    <div>URL: {window.location.href}</div>
+                                    <div>Cookie: {document.cookie ? 'あり' : 'なし'}</div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        // Main App Component
+        function App() {
+            const { auth } = useContext(AuthContext);
+
+            // Hide loading screen when React app is loaded
+            useEffect(() => {
+                const loadingScreen = document.getElementById('loading-screen');
+                if (loadingScreen) {
+                    setTimeout(() => {
+                        loadingScreen.style.display = 'none';
+                    }, 1000);
+                }
+            }, []);
+
+            if (auth.loading) {
+                return null; // Loading screen is shown
+            }
+
+            if (!auth.authenticated) {
+                return <LoginPage />;
+            }
+
+            return (
+                <div className="min-h-screen bg-gray-50">
+                    <Header />
+                    <main>
+                        <Dashboard />
+                    </main>
+                </div>
+            );
+        }
+
+        // Bootstrap App
+        function BootstrapApp() {
+            return (
+                <AuthProvider>
+                    <App />
+                </AuthProvider>
+            );
+        }
+
+        // Mount React App
+        ReactDOM.render(<BootstrapApp />, document.getElementById('app'));
+    </script>
+</body>
+</html>

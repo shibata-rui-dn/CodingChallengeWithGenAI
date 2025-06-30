@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= pageTitle %> - SSO Admin</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-box">
+            <div class="error-header">
+                <div class="app-logo">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2L22 7L12 12L2 7L12 2Z" fill="#d13438"/>
+                        <path d="M2 17L12 22L22 17" stroke="#d13438" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 12L12 17L22 12" stroke="#d13438" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <h1>Admin Login Error</h1>
+            </div>
+            
+            <div class="error-details">
+                <div class="error-message">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" style="color: #d13438; margin-bottom: 16px;">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                    </svg>
+                    <p>
+                        <% if (error === 'missing_code') { %>
+                            Authorization code was not provided by the authentication server.
+                        <% } else if (error === 'token_exchange_failed') { %>
+                            Failed to exchange authorization code for access token.
+                        <% } else if (error === 'callback_processing_failed') { %>
+                            An error occurred while processing the authentication callback.
+                        <% } else { %>
+                            An unexpected error occurred during admin panel authentication.
+                        <% } %>
+                    </p>
+                    <p style="font-size: 14px; color: #605e5c; margin-top: 8px;">
+                        Error code: <code><%= error %></code>
+                    </p>
+                </div>
+                
+                <div class="error-suggestions">
+                    <h3>Troubleshooting Steps:</h3>
+                    <ul>
+                        <li>Ensure you have admin privileges</li>
+                        <li>Check that the admin-panel OAuth client is properly configured</li>
+                        <li>Verify the callback URL is correct: <code>http://localhost:3303/admin/callback</code></li>
+                        <li>Try clearing your browser cache and cookies</li>
+                        <li>Contact your system administrator if the problem persists</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="error-actions">
+                <a href="/admin" class="error-btn primary">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="margin-right: 8px;">
+                        <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0z"/>
+                        <path d="M6.5 7.5A.5.5 0 0 1 7 7h3a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5v-3z"/>
+                    </svg>
+                    Try Again
+                </a>
+                <a href="/" class="error-btn secondary">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="margin-right: 8px;">
+                        <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+                    </svg>
+                    Return to Main Site
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
