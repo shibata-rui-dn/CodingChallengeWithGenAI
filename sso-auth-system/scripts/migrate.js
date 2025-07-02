@@ -71,6 +71,61 @@ async function runMigrations() {
         console.log(`  ✅ ${file} completed`);
         continue;
       }
+
+      // 🆕 Special handling for the enhanced origins table migration
+      if (file === '007_enhance_origins_table.sql') {
+        const autoAddedExists = await checkColumnExists(pool, 'allowed_origins', 'auto_added');
+        const sourceClientExists = await checkColumnExists(pool, 'allowed_origins', 'source_client_id');
+        const originTypeExists = await checkColumnExists(pool, 'allowed_origins', 'origin_type');
+        
+        if (!autoAddedExists) {
+          try {
+            pool.rawDb.exec('ALTER TABLE allowed_origins ADD COLUMN auto_added BOOLEAN DEFAULT 0');
+            console.log('  ✅ Added auto_added column to allowed_origins table');
+          } catch (error) {
+            console.warn(`  ⚠️ Warning adding auto_added column: ${error.message}`);
+          }
+        }
+        
+        if (!sourceClientExists) {
+          try {
+            pool.rawDb.exec('ALTER TABLE allowed_origins ADD COLUMN source_client_id TEXT');
+            console.log('  ✅ Added source_client_id column to allowed_origins table');
+          } catch (error) {
+            console.warn(`  ⚠️ Warning adding source_client_id column: ${error.message}`);
+          }
+        }
+        
+        if (!originTypeExists) {
+          try {
+            pool.rawDb.exec('ALTER TABLE allowed_origins ADD COLUMN origin_type TEXT DEFAULT \'manual\'');
+            console.log('  ✅ Added origin_type column to allowed_origins table');
+          } catch (error) {
+            console.warn(`  ⚠️ Warning adding origin_type column: ${error.message}`);
+          }
+        }
+        
+        // Create indexes
+        try {
+          pool.rawDb.exec('CREATE INDEX IF NOT EXISTS idx_allowed_origins_auto_added ON allowed_origins(auto_added)');
+          pool.rawDb.exec('CREATE INDEX IF NOT EXISTS idx_allowed_origins_source_client ON allowed_origins(source_client_id)');
+          pool.rawDb.exec('CREATE INDEX IF NOT EXISTS idx_allowed_origins_type ON allowed_origins(origin_type)');
+          console.log('  ✅ Created indexes for enhanced origins table');
+        } catch (error) {
+          console.warn(`  ⚠️ Warning creating indexes: ${error.message}`);
+        }
+        
+        // Update existing origins
+        try {
+          pool.rawDb.exec("UPDATE allowed_origins SET origin_type = 'manual', auto_added = 0 WHERE auto_added IS NULL OR origin_type IS NULL");
+          console.log('  ✅ Updated existing origins with default values');
+        } catch (error) {
+          console.warn(`  ⚠️ Warning updating existing origins: ${error.message}`);
+        }
+        
+        console.log(`  ✅ ${file} completed`);
+        continue;
+      }
       
       // Regular migration handling for other files
       const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');

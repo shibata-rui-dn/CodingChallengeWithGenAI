@@ -4,7 +4,7 @@ import { getConfig } from '../../config/configLoader.js';
 let allowedOrigins = [];
 let clientOrigins = [];
 let lastUpdated = 0;
-const CACHE_DURATION = 30000;
+const CACHE_DURATION = 3000; // 3 seconds, 今回はデモ用に短めに設定
 
 async function loadAllowedOrigins() {
   try {
@@ -142,7 +142,38 @@ async function refreshOrigins() {
     origins: finalOrigins
   });
   
+  // 🆕 CSP設定も自動更新
+  try {
+    const { refreshCSPConfiguration } = await import('../server.js');
+    await refreshCSPConfiguration();
+    console.log('🛡️ CSP configuration auto-updated after origins refresh');
+  } catch (error) {
+    console.warn('⚠️ Failed to auto-update CSP configuration:', error.message);
+  }
+  
   return finalOrigins;
+}
+
+// 🆕 CSP設定のみを強制更新する関数
+async function forceRefreshCSP() {
+  try {
+    // キャッシュを無効化
+    lastUpdated = 0;
+    
+    // Origins を再読み込み
+    await loadAllowedOrigins();
+    await loadClientOrigins();
+    
+    // CSP設定を更新
+    const { refreshCSPConfiguration } = await import('../server.js');
+    const updatedOrigins = await refreshCSPConfiguration();
+    
+    console.log('🛡️ CSP force refresh completed:', updatedOrigins);
+    return updatedOrigins;
+  } catch (error) {
+    console.error('❌ Failed to force refresh CSP:', error);
+    throw error;
+  }
 }
 
 const dynamicCors = cors({
@@ -182,5 +213,6 @@ export {
   refreshOrigins, 
   loadAllowedOrigins, 
   getCSPOrigins,
-  loadClientOrigins
+  loadClientOrigins,
+  forceRefreshCSP 
 };

@@ -88,15 +88,25 @@ async function setupDynamicCSP() {
   }
 }
 
-const dynamicHelmet = await setupDynamicCSP();
-
-app.use((req, res, next) => {
+// 🆕 動的CSPミドルウェア
+const dynamicHelmetMiddleware = async (req, res, next) => {
   if (currentHelmet) {
-    currentHelmet(req, res, next);
+    try {
+      currentHelmet(req, res, next);
+    } catch (error) {
+      console.warn('⚠️ CSP middleware error:', error.message);
+      next();
+    }
   } else {
+    console.warn('⚠️ No CSP middleware available, proceeding without CSP');
     next();
   }
-});
+};
+
+const dynamicHelmet = await setupDynamicCSP();
+
+// 🔧 修正: 静的なhelmetの代わりに動的ミドルウェアを使用
+app.use(dynamicHelmetMiddleware);
 
 app.use(dynamicCors);
 app.use(morgan('common'));
@@ -132,20 +142,27 @@ app.use('/admin/api/users', userRoutes);
 app.use('/admin/api/clients', clientRoutes);
 app.use('/admin/origins', originRoutes);
 
+// 🆕 CSP リフレッシュエンドポイントを改良
 app.post('/admin/refresh-csp', async (req, res) => {
   try {
-    console.log('🔄 Refreshing CSP configuration...');
+    console.log('🔄 Manual CSP refresh requested...');
     
-    const newHelmet = await setupDynamicCSP();
+    // 強制的にCSP設定を更新
+    const newCSPOrigins = await refreshCSPConfiguration();
     
-    console.log('✅ CSP configuration updated');
+    console.log('✅ Manual CSP configuration updated');
     
     res.json({ 
-      message: 'CSP configuration refreshed successfully'
+      message: 'CSP configuration refreshed successfully',
+      origins: newCSPOrigins,
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
     console.error('❌ Failed to refresh CSP:', error);
-    res.status(500).json({ error: 'Failed to refresh CSP configuration' });
+    res.status(500).json({ 
+      error: 'Failed to refresh CSP configuration',
+      details: error.message 
+    });
   }
 });
 
@@ -180,14 +197,29 @@ app.listen(PORT, () => {
   console.log(`🔑 Admin OAuth Client: admin-panel`);
 });
 
+// 🔧 修正: CSP設定更新機能を改良
 export async function refreshCSPConfiguration() {
   try {
+    console.log('🔄 Refreshing CSP configuration...');
+    
+    // キャッシュを無効化してOriginを再読み込み
+    const { forceRefreshCSP } = await import('./middleware/cors.js');
+    
+    // 新しいCSP設定をセットアップ
+    const newHelmet = await setupDynamicCSP();
+    
+    // グローバルな現在のhelmetを更新
+    currentHelmet = newHelmet;
+    
+    // 新しいorigin情報を取得
     const newCSPOrigins = await getCSPOrigins();
-    await setupDynamicCSP();
-    console.log('🔄 CSP origins refreshed:', newCSPOrigins);
+    
+    console.log('✅ CSP configuration successfully refreshed');
+    console.log('🛡️ Updated CSP origins:', newCSPOrigins);
+    
     return newCSPOrigins;
   } catch (error) {
-    console.error('❌ Failed to refresh CSP origins:', error);
+    console.error('❌ Failed to refresh CSP configuration:', error);
     return [];
   }
 }

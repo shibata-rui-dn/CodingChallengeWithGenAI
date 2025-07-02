@@ -3,13 +3,130 @@ import pool from '../../config/database.js';
 
 async function refreshCSPOrigins() {
   try {
+    // cors.jsの関数を呼び出してOriginをリフレッシュ
+    const { refreshOrigins } = await import('../middleware/cors.js');
+    await refreshOrigins();
+    
+    // server.jsの関数を呼び出してCSP設定を更新
     const { refreshCSPConfiguration } = await import('../server.js');
     const newCSPOrigins = await refreshCSPConfiguration();
+    
     console.log('🔄 CSP origins refreshed after client change:', newCSPOrigins);
     return newCSPOrigins;
   } catch (error) {
     console.error('❌ Failed to refresh CSP origins:', error);
     return [];
+  }
+}
+
+// 🆕 クライアントのリダイレクトURIからオリジンを抽出
+function extractOriginsFromRedirectUris(redirectUris) {
+  const origins = new Set();
+  
+  if (!Array.isArray(redirectUris)) {
+    return [];
+  }
+  
+  for (const uri of redirectUris) {
+    try {
+      const url = new URL(uri);
+      const origin = `${url.protocol}//${url.host}`;
+      origins.add(origin);
+    } catch (error) {
+      console.warn(`⚠️ Invalid redirect URI: ${uri}`);
+    }
+  }
+  
+  return Array.from(origins);
+}
+
+// 🆕 クライアントのオリジンを allowed_origins テーブルに自動追加
+async function manageClientOrigins(clientId, redirectUris, operation = 'upsert') {
+  const origins = extractOriginsFromRedirectUris(redirectUris);
+  
+  try {
+    if (operation === 'upsert' && origins.length > 0) {
+      console.log(`🔗 Managing ${origins.length} origins for client ${clientId}`);
+      
+      for (const origin of origins) {
+        // 既存のオリジンをチェック
+        const existingOrigin = await pool.query(
+          'SELECT id, auto_added, source_client_id FROM allowed_origins WHERE origin = ?',
+          [origin]
+        );
+        
+        if (existingOrigin.rows.length === 0) {
+          // 新しいオリジンを自動追加
+          await pool.query(
+            `INSERT INTO allowed_origins (origin, description, added_by, is_active, auto_added, source_client_id, origin_type) 
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
+              origin,
+              `Auto-added from client: ${clientId}`,
+              1, // system user ID
+              1, // active
+              1, // auto_added
+              clientId,
+              'client'
+            ]
+          );
+          console.log(`  ✅ Auto-added origin: ${origin}`);
+          
+        } else if (existingOrigin.rows[0].auto_added && existingOrigin.rows[0].source_client_id !== clientId) {
+          // 他のクライアントによって自動追加されたオリジンの場合、複数クライアント参照に更新
+          await pool.query(
+            `UPDATE allowed_origins 
+             SET description = ?, source_client_id = ?, origin_type = 'shared'
+             WHERE origin = ?`,
+            [
+              `Shared origin used by multiple clients including: ${clientId}`,
+              null, // 複数クライアントで使用される場合はnull
+              origin
+            ]
+          );
+          console.log(`  🔗 Updated origin to shared: ${origin}`);
+        }
+      }
+      
+    } else if (operation === 'cleanup') {
+      // クライアント削除時のクリーンアップ
+      console.log(`🗑️ Cleaning up origins for deleted client ${clientId}`);
+      
+      // このクライアントが単独で使用していた自動追加オリジンを削除
+      const clientOrigins = await pool.query(
+        'SELECT id, origin FROM allowed_origins WHERE source_client_id = ? AND auto_added = 1',
+        [clientId]
+      );
+      
+      for (const originRow of clientOrigins.rows) {
+        // 他のクライアントが同じオリジンを使用しているかチェック
+        const otherClientsUsingOrigin = await pool.query(
+          `SELECT COUNT(*) as count FROM clients 
+           WHERE client_id != ? AND is_active = 1 
+           AND redirect_uris LIKE ?`,
+          [clientId, `%${originRow.origin}%`]
+        );
+        
+        if (otherClientsUsingOrigin.rows[0].count === 0) {
+          // 他のクライアントが使用していない場合は削除
+          await pool.query('DELETE FROM allowed_origins WHERE id = ?', [originRow.id]);
+          console.log(`  🗑️ Removed unused auto-added origin: ${originRow.origin}`);
+        } else {
+          // 他のクライアントも使用している場合は参照を更新
+          await pool.query(
+            `UPDATE allowed_origins 
+             SET source_client_id = NULL, origin_type = 'shared',
+                 description = 'Shared origin used by multiple clients'
+             WHERE id = ?`,
+            [originRow.id]
+          );
+          console.log(`  🔗 Updated origin to shared after client deletion: ${originRow.origin}`);
+        }
+      }
+    }
+    
+  } catch (error) {
+    console.error(`❌ Failed to manage origins for client ${clientId}:`, error);
   }
 }
 
@@ -155,6 +272,11 @@ class ClientController {
         [client_id, client_secret, name, JSON.stringify(redirect_uris), scopes.join(' ')]
       );
 
+      // 🆕 クライアントのオリジンを自動的に allowed_origins に追加
+      await manageClientOrigins(client_id, redirect_uris, 'upsert');
+
+      // CSP設定を即座に更新
+      console.log('🔄 Client created, refreshing CSP configuration...');
       await refreshCSPOrigins();
 
       const newClientResult = await pool.query(
@@ -267,7 +389,14 @@ class ClientController {
         });
       }
 
+      // 🆕 リダイレクトURIが変更された場合は、オリジン管理を更新
+      if (redirectUrisChanged && redirect_uris) {
+        await manageClientOrigins(client_id, redirect_uris, 'upsert');
+      }
+
+      // リダイレクトURIまたはステータスが変更された場合はCSPを更新
       if (redirectUrisChanged) {
+        console.log('🔄 Client updated, refreshing CSP configuration...');
         await refreshCSPOrigins();
       }
 
@@ -296,7 +425,7 @@ class ClientController {
       const { client_id } = req.params;
 
       const existingClientResult = await pool.query(
-        'SELECT name FROM clients WHERE client_id = ?',
+        'SELECT name, redirect_uris FROM clients WHERE client_id = ?',
         [client_id]
       );
 
@@ -309,6 +438,10 @@ class ClientController {
 
       const clientToDelete = existingClientResult.rows[0];
 
+      // 🆕 クライアント削除前にオリジンのクリーンアップ
+      const redirectUris = JSON.parse(clientToDelete.redirect_uris);
+      await manageClientOrigins(client_id, redirectUris, 'cleanup');
+
       const deleteResult = await pool.query('DELETE FROM clients WHERE client_id = ?', [client_id]);
 
       if (deleteResult.rowCount === 0) {
@@ -318,6 +451,8 @@ class ClientController {
         });
       }
 
+      // クライアント削除後CSPを更新
+      console.log('🔄 Client deleted, refreshing CSP configuration...');
       await refreshCSPOrigins();
 
       res.json({

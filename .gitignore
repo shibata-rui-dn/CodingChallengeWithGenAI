@@ -152,3 +152,4 @@ data/
 *sqlite
 *.sqlite-shm
 *.sqlite-wal
+js_combiner.js
